@@ -149,6 +149,7 @@ func (tr *TaskRunner) initHooks() {
 
 	// If this task driver has remote capabilities, add the remote task
 	// hook.
+	tr.logger.Debug("=================> initHooks ", "RemoteTasks", tr.driverCapabilities.RemoteTasks)
 	if tr.driverCapabilities.RemoteTasks {
 		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
 	}

@@ -790,6 +790,7 @@ func (ar *allocRunner) AllocState() *state.State {
 // When processing a new update, we will first attempt to drain stale updates
 // from the queue, before appending the new one.
 func (ar *allocRunner) Update(update *structs.Allocation) {
+	ar.logger.Debug("===> ar update", "desired", update.DesiredStatus, "client", update.ClientStatus)
 	select {
 	// Drain queued update from the channel if possible, and check the modify
 	// index
@@ -815,6 +816,7 @@ func (ar *allocRunner) Update(update *structs.Allocation) {
 	default:
 	}
 
+	//TODO(schmichael) this could use a select with waitCh as well as popping any old updates
 	// Queue the new update
 	ar.allocUpdatedCh <- update
 }
@@ -848,6 +850,7 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 
 	}
 
+	ar.logger.Debug("===> ar update -> updating task runners", "desired", update.DesiredStatus, "client", update.ClientStatus)
 	// Update task runners
 	for _, tr := range ar.tasks {
 		tr.Update(update)
@@ -855,7 +858,10 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 
 	// If alloc is being terminated, kill all tasks, leader first
 	if stopping {
+		ar.logger.Debug("==> STOPPING alloc", "desired", update.DesiredStatus, "client", update.ClientStatus)
 		ar.killTasks()
+		ar.logger.Debug("==> STOPPED alloc", "desired", update.DesiredStatus, "client", update.ClientStatus)
+
 	}
 
 }

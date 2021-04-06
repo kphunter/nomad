@@ -462,6 +462,8 @@ func (tr *TaskRunner) Run() {
 	dead := tr.state.State == structs.TaskStateDead
 	tr.stateLock.RUnlock()
 
+	tr.logger.Debug("==> TaskRunner dead?", "dead", dead)
+
 	// if restoring a dead task, ensure that task is cleared and all post hooks
 	// are called without additional state updates
 	if dead {
@@ -487,6 +489,7 @@ func (tr *TaskRunner) Run() {
 		tr.logger.Info("task failed to restore; waiting to contact server before restarting")
 		select {
 		case <-tr.killCtx.Done():
+			tr.logger.Info("task killed while waiting for server contact")
 		case <-tr.shutdownCtx.Done():
 			return
 		case <-tr.serversContactedCh:
@@ -499,6 +502,7 @@ func (tr *TaskRunner) Run() {
 		tr.logger.Debug("lifecycle start condition has been met, proceeding")
 		// yay proceed
 	case <-tr.killCtx.Done():
+		tr.logger.Debug("----> TR killed while waiting for start conditions")
 	case <-tr.shutdownCtx.Done():
 		return
 	}
@@ -507,6 +511,7 @@ MAIN:
 	for !tr.shouldShutdown() {
 		select {
 		case <-tr.killCtx.Done():
+			tr.logger.Debug("----> TR killed inside MAIN loop")
 			break MAIN
 		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
@@ -628,11 +633,14 @@ MAIN:
 }
 
 func (tr *TaskRunner) shouldShutdown() bool {
-	if tr.alloc.ClientTerminalStatus() {
+	alloc := tr.Alloc()
+	if alloc.ClientTerminalStatus() {
+		tr.logger.Debug("----> TR shouldShutdown true", "client", tr.alloc.ClientTerminalStatus())
 		return true
 	}
 
-	if !tr.IsPoststopTask() && tr.alloc.ServerTerminalStatus() {
+	if !tr.IsPoststopTask() && alloc.ServerTerminalStatus() {
+		tr.logger.Debug("----> TR shouldShutdown true", "server", tr.alloc.ServerTerminalStatus())
 		return true
 	}
 

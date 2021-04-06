@@ -178,7 +178,9 @@ func (m *manager) Run() {
 	var skippedDrivers []string
 	for _, d := range driversPlugins {
 		id := loader.PluginInfoID(d)
+		m.logger.Debug("===> Loading driver", "id", id)
 		if m.isDriverBlocked(id.Name) {
+			m.logger.Debug("===> Loading driver SKIPPING", "id", id)
 			skippedDrivers = append(skippedDrivers, id.Name)
 			continue
 		}

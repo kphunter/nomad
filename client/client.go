@@ -1666,6 +1666,10 @@ func (c *Client) run() {
 				return
 			}
 
+			for _, alloc := range update.pulled {
+				c.logger.Debug("===> pulled alloc", "alloc_id", alloc.ID, "client", alloc.ClientStatus, "server", alloc.DesiredStatus)
+			}
+
 			// Apply updates inside lock to prevent a concurrent
 			// shutdown.
 			c.runAllocs(update)
@@ -2217,7 +2221,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Update the existing allocations
 	for _, update := range diff.updated {
-		c.logger.Trace("updating alloc", "alloc_id", update.ID, "index", update.AllocModifyIndex)
+		c.logger.Debug("==> updating alloc", "alloc_id", update.ID, "index", update.AllocModifyIndex)
 		c.updateAlloc(update)
 	}
 

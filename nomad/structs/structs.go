@@ -7433,8 +7433,8 @@ type TaskState struct {
 	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
 
-	// TaskHandle is based on drivers.TaskHandle and used by remote task
-	// drivers to migrate task handles between allocations.
+	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
+	// by remote task drivers to migrate task handles between allocations.
 	TaskHandle *TaskHandle
 }
 

@@ -31,11 +31,18 @@ func (h *remoteTaskHook) Name() string {
 	return "remote_task"
 }
 
+// Prestart performs 2 remote task driver related tasks:
+//   1. If there is no local handle, see if there is a handle propagated from a
+//      previous alloc to be restored.
+//   2. If the alloc is lost make sure the task signal is set to detach instead
+//      of kill.
 func (h *remoteTaskHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	// Ensure the signal is set according to the allocation's state
+	h.setSignal(h.tr.Alloc())
+
 	if h.tr.getDriverHandle() != nil {
 		// Driver handle already exists so don't try to load remote
 		// task handle
-		resp.Done = true
 		return nil
 	}
 
@@ -69,7 +76,7 @@ func (h *remoteTaskHook) Prestart(ctx context.Context, req *interfaces.TaskPrest
 		return nil
 	}
 
-	h.logger.Trace("using remote task handle")
+	h.logger.Debug("=====> using remote task handle")
 
 	h.tr.setDriverHandle(NewDriverHandle(h.tr.driver, th.Config.ID, h.tr.Task(), taskInfo.NetworkOverride))
 
@@ -80,7 +87,13 @@ func (h *remoteTaskHook) Prestart(ctx context.Context, req *interfaces.TaskPrest
 
 	h.tr.UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 
-	resp.Done = true
+	return nil
+}
+
+func (h *remoteTaskHook) Update(ctx context.Context, _ *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
+	alloc := h.tr.Alloc()
+	h.logger.Debug("===> Updating Remote Task Hook", "desired", alloc.DesiredStatus, "client", alloc.ClientStatus)
+	h.setSignal(alloc)
 	return nil
 }
 
@@ -88,9 +101,17 @@ func (h *remoteTaskHook) Prestart(ctx context.Context, req *interfaces.TaskPrest
 // stopping it.
 //
 //FIXME(schmichael) this is a hacky way to signal "detach" instead of "destroy"
-//and requires the driver to keep extra state
+//and requires the driver handle to keep extra state
 func (h *remoteTaskHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKillRequest, resp *interfaces.TaskPreKillResponse) error {
 	alloc := h.tr.Alloc()
+	h.logger.Debug("===> PreKilling Remote Task Hook", "desired", alloc.DesiredStatus, "client", alloc.ClientStatus)
+	h.setSignal(alloc)
+	return nil
+}
+
+// setSignal to detach if the allocation is lost or draining. Safe to call
+// multiple times as it only transitions to using detach -- never back to kill.
+func (h *remoteTaskHook) setSignal(alloc *structs.Allocation) {
 	switch {
 	case alloc.ClientStatus == structs.AllocClientStatusLost:
 		// Continue on; lost allocs should just detach
@@ -98,17 +119,19 @@ func (h *remoteTaskHook) PreKilling(ctx context.Context, req *interfaces.TaskPre
 		// Continue on; migrating allocs should just detach
 	default:
 		// Nothing to do exit early
-		return nil
+		return
 	}
 
 	driverHandle := h.tr.getDriverHandle()
 	if driverHandle == nil {
+		h.logger.Debug("===> PreKilling Remote Task Hook NO DRIVER HANDLE", "desired", alloc.DesiredStatus, "client", alloc.ClientStatus)
 		// Nothing to do exit early
-		return nil
+		return
 	}
 
 	//HACK DetachSignal indicates to the remote task driver that it should
 	//detach this remote task and ignore further actions against it.
+	h.logger.Debug("===> PRE  SetKillSignal")
 	driverHandle.SetKillSignal(drivers.DetachSignal)
-	return nil
+	h.logger.Debug("===> POST SetKillSignal")
 }
