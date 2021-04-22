@@ -208,6 +208,11 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 		s.blocked.StatusDescription = blockedEvalFailedPlacements
 	}
 
+	s.blocked.FailedTGAllocs = make(map[string]*structs.AllocMetric)
+	for k, v := range s.failedTGAllocs {
+		s.blocked.FailedTGAllocs[k] = v.Copy()
+	}
+
 	return s.planner.CreateEval(s.blocked)
 }
 
@@ -626,6 +631,13 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if s.failedTGAllocs == nil {
 					s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 				}
+
+				pendingResources := make(map[string]int)
+				for _, t := range tg.Tasks {
+					pendingResources["memory"] += t.Resources.MemoryMB
+					pendingResources["cpu"] += t.Resources.CPU
+				}
+				s.ctx.Metrics().ResourcesPending = pendingResources
 
 				// Track the fact that we didn't find a placement
 				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()

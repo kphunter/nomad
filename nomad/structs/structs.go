@@ -9792,6 +9792,8 @@ type AllocMetric struct {
 	// QuotaExhausted provides the exhausted dimensions
 	QuotaExhausted []string
 
+	ResourcesPending map[string]int
+
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
 	// Deprecated: Replaced by ScoreMetaData in Nomad 0.9

@@ -107,11 +107,41 @@ type BlockedStats struct {
 	// TotalQuotaLimit is the total number of blocked evaluations that are due
 	// to the quota limit being reached.
 	TotalQuotaLimit int
+
+	TotalBlockedResources map[structs.NamespacedID]*BlockedResourcesStats
+}
+
+type BlockedResourcesStats struct {
+	TaskGroup string
+	Task      string
+	CPU       int
+	MemoryMB  int
+}
+
+func (b *BlockedStats) Block(eval *structs.Evaluation) {
+	b.TotalBlocked++
+
+	namespacedID := structs.NewNamespacedID(eval.JobID, eval.Namespace)
+	for _, v := range eval.FailedTGAllocs {
+		if _, ok := b.TotalBlockedResources[namespacedID]; !ok {
+			b.TotalBlockedResources[namespacedID] = &BlockedResourcesStats{}
+		}
+		b.TotalBlockedResources[namespacedID].MemoryMB += v.ResourcesPending["memory"]
+		b.TotalBlockedResources[namespacedID].CPU += v.ResourcesPending["cpu"]
+	}
+}
+
+func (b *BlockedStats) Unblock(eval *structs.Evaluation) {
+	b.TotalBlocked--
+	b.TotalBlockedResources[structs.NewNamespacedID(eval.JobID, eval.Namespace)] = &BlockedResourcesStats{}
 }
 
 // NewBlockedEvals creates a new blocked eval tracker that will enqueue
 // unblocked evals into the passed broker.
 func NewBlockedEvals(evalBroker *EvalBroker, logger log.Logger) *BlockedEvals {
+	stats := new(BlockedStats)
+	stats.TotalBlockedResources = make(map[structs.NamespacedID]*BlockedResourcesStats)
+
 	return &BlockedEvals{
 		logger:           logger.Named("blocked_evals"),
 		evalBroker:       evalBroker,
@@ -123,7 +153,7 @@ func NewBlockedEvals(evalBroker *EvalBroker, logger log.Logger) *BlockedEvals {
 		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
 		duplicateCh:      make(chan struct{}, 1),
 		stopCh:           make(chan struct{}),
-		stats:            new(BlockedStats),
+		stats:            stats,
 	}
 }
 
@@ -209,7 +239,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 
 	// Mark the job as tracked.
 	b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)] = eval.ID
-	b.stats.TotalBlocked++
+	b.stats.Block(eval)
 
 	// Track that the evaluation is being added due to reaching the quota limit
 	if eval.QuotaLimitReached != "" {
@@ -263,7 +293,7 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCa
 	if ok {
 		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
 			delete(b.captured, existingID)
-			b.stats.TotalBlocked--
+			b.stats.Unblock(eval)
 			dup = existingW.eval
 		} else {
 			dup = eval
@@ -379,7 +409,7 @@ func (b *BlockedEvals) Untrack(jobID, namespace string) {
 	if evals, ok := b.system.JobEvals(nsID); ok {
 		for _, e := range evals {
 			b.system.Remove(e)
-			b.stats.TotalBlocked--
+			b.stats.Unblock(e)
 		}
 		return
 	}
@@ -395,7 +425,7 @@ func (b *BlockedEvals) Untrack(jobID, namespace string) {
 	if w, ok := b.captured[evalID]; ok {
 		delete(b.jobs, nsID)
 		delete(b.captured, evalID)
-		b.stats.TotalBlocked--
+		b.stats.Unblock(w.eval)
 		if w.eval.QuotaLimitReached != "" {
 			b.stats.TotalQuotaLimit--
 		}
@@ -405,7 +435,7 @@ func (b *BlockedEvals) Untrack(jobID, namespace string) {
 		delete(b.jobs, nsID)
 		delete(b.escaped, evalID)
 		b.stats.TotalEscaped--
-		b.stats.TotalBlocked--
+		b.stats.Unblock(w.eval)
 		if w.eval.QuotaLimitReached != "" {
 			b.stats.TotalQuotaLimit--
 		}
@@ -511,7 +541,7 @@ func (b *BlockedEvals) UnblockNode(nodeID string, index uint64) {
 
 	for e := range evals {
 		b.system.Remove(e)
-		b.stats.TotalBlocked--
+		b.stats.Unblock(e)
 	}
 
 	b.evalBroker.EnqueueAll(evals)
@@ -707,6 +737,14 @@ func (b *BlockedEvals) Stats() *BlockedStats {
 	stats.TotalEscaped = b.stats.TotalEscaped
 	stats.TotalBlocked = b.stats.TotalBlocked
 	stats.TotalQuotaLimit = b.stats.TotalQuotaLimit
+
+	stats.TotalBlockedResources = make(map[structs.NamespacedID]*BlockedResourcesStats)
+	for k, v := range b.stats.TotalBlockedResources {
+		stats.TotalBlockedResources[k] = &BlockedResourcesStats{
+			CPU:      v.CPU,
+			MemoryMB: v.MemoryMB,
+		}
+	}
 	return stats
 }
 
@@ -719,6 +757,15 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_quota_limit"}, float32(stats.TotalQuotaLimit))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_blocked"}, float32(stats.TotalBlocked))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_escaped"}, float32(stats.TotalEscaped))
+
+			for k, v := range stats.TotalBlockedResources {
+				labels := []metrics.Label{
+					{Name: "namespace", Value: k.Namespace},
+					{Name: "job", Value: k.ID},
+				}
+				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "blocked_resources", "cpu"}, float32(v.CPU), labels)
+				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "blocked_resources", "memory"}, float32(v.MemoryMB), labels)
+			}
 		case <-stopCh:
 			return
 		}
