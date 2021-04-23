@@ -11,15 +11,6 @@ module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('search does not perform a request when only one character has been entered', async function(assert) {
-    await visit('/');
-
-    await selectSearch(Layout.navbar.search.scope, 'q');
-
-    assert.ok(Layout.navbar.search.noOptionsShown);
-    assert.equal(server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length, 1, 'expect the feature detection query');
-  });
-
   test('results are truncated at 10 per group', async function(assert) {
     server.create('node', { name: 'xyz' });
 
