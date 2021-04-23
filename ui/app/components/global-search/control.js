@@ -1,12 +1,9 @@
 import Component from '@ember/component';
 import { classNames } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
-import EmberObject, { action, computed, set } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { action, set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { debounce, run } from '@ember/runloop';
-import Searchable from 'nomad-ui/mixins/searchable';
-import classic from 'ember-classic-decorator';
 
 const SLASH_KEY = 191;
 const MAXIMUM_RESULTS = 10;
@@ -22,18 +19,6 @@ export default class GlobalSearchControl extends Component {
   constructor() {
     super(...arguments);
     this['data-test-search-parent'] = true;
-
-    this.jobSearch = JobSearch.create({
-      dataSource: this,
-    });
-
-    this.nodeNameSearch = NodeNameSearch.create({
-      dataSource: this,
-    });
-
-    this.nodeIdSearch = NodeIdSearch.create({
-      dataSource: this,
-    });
   }
 
   keyDownHandler(e) {
@@ -233,60 +218,6 @@ export default class GlobalSearchControl extends Component {
       },
     };
   }
-}
-
-@classic
-class JobSearch extends EmberObject.extend(Searchable) {
-  @computed
-  get searchProps() {
-    return ['id', 'name'];
-  }
-
-  @computed
-  get fuzzySearchProps() {
-    return ['name'];
-  }
-
-  @alias('dataSource.jobs') listToSearch;
-  @alias('dataSource.searchString') searchTerm;
-
-  fuzzySearchEnabled = true;
-  includeFuzzySearchMatches = true;
-}
-@classic
-class NodeNameSearch extends EmberObject.extend(Searchable) {
-  @computed
-  get searchProps() {
-    return ['name'];
-  }
-
-  @computed
-  get fuzzySearchProps() {
-    return ['name'];
-  }
-
-  @alias('dataSource.nodes') listToSearch;
-  @alias('dataSource.searchString') searchTerm;
-
-  fuzzySearchEnabled = true;
-  includeFuzzySearchMatches = true;
-}
-
-@classic
-class NodeIdSearch extends EmberObject.extend(Searchable) {
-  @computed
-  get regexSearchProps() {
-    return ['id'];
-  }
-
-  @alias('dataSource.nodes') listToSearch;
-  @computed('dataSource.searchString')
-  get searchTerm() {
-    return `^${this.get('dataSource.searchString')}`;
-  }
-
-  exactMatchEnabled = false;
-  regexEnabled = true;
 }
 
 function resultsGroupLabel(type, renderedResults, allResults, truncated) {
