@@ -10,16 +10,6 @@ module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('clicking the search field starts search immediately', async function(assert) {
-    await visit('/');
-
-    assert.notOk(Layout.navbar.search.field.isPresent);
-
-    await Layout.navbar.search.click();
-
-    assert.ok(Layout.navbar.search.field.isPresent);
-  });
-
   test('pressing slash starts a search', async function(assert) {
     await visit('/');
 
