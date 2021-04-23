@@ -38,7 +38,7 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, 'xy');
 
     Layout.navbar.search.as(search => {
-      assert.equal(search.groups.length, 3);
+      assert.equal(search.groups.length, 5);
 
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
