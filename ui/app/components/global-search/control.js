@@ -13,7 +13,6 @@ const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
 export default class GlobalSearchControl extends Component {
-  @service dataCaches;
   @service router;
   @service store;
   @service token;
@@ -69,7 +68,9 @@ export default class GlobalSearchControl extends Component {
 
       const jobResults = this.jobSearch.listSearched.slice(0, MAXIMUM_RESULTS);
 
-      const mergedNodeListSearched = this.nodeIdSearch.listSearched.concat(this.nodeNameSearch.listSearched).uniq();
+      const mergedNodeListSearched = this.nodeIdSearch.listSearched
+        .concat(this.nodeNameSearch.listSearched)
+        .uniq();
       const nodeResults = mergedNodeListSearched.slice(0, MAXIMUM_RESULTS);
 
       return [
@@ -106,32 +107,40 @@ export default class GlobalSearchControl extends Component {
     const allTaskGroupResults = results.Matches.groups || [];
     const allCSIPluginResults = results.Matches.plugins || [];
 
-    const jobResults = allJobResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ namespace, id ]}) => ({
-      type: 'job',
-      id,
-      namespace,
-      label: name,
-    }));
+    const jobResults = allJobResults
+      .slice(0, MAXIMUM_RESULTS)
+      .map(({ ID: name, Scope: [namespace, id] }) => ({
+        type: 'job',
+        id,
+        namespace,
+        label: name,
+      }));
 
-    const nodeResults = allNodeResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ id ]}) => ({
-      type: 'node',
-      id,
-      label: name,
-    }));
+    const nodeResults = allNodeResults
+      .slice(0, MAXIMUM_RESULTS)
+      .map(({ ID: name, Scope: [id] }) => ({
+        type: 'node',
+        id,
+        label: name,
+      }));
 
-    const allocationResults = allAllocationResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ , id ]}) => ({
-      type: 'allocation',
-      id,
-      label: name,
-    }));
+    const allocationResults = allAllocationResults
+      .slice(0, MAXIMUM_RESULTS)
+      .map(({ ID: name, Scope: [, id] }) => ({
+        type: 'allocation',
+        id,
+        label: name,
+      }));
 
-    const taskGroupResults = allTaskGroupResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id, Scope: [ namespace, jobId ]}) => ({
-      type: 'task-group',
-      id,
-      namespace,
-      jobId,
-      label: id,
-    }));
+    const taskGroupResults = allTaskGroupResults
+      .slice(0, MAXIMUM_RESULTS)
+      .map(({ ID: id, Scope: [namespace, jobId] }) => ({
+        type: 'task-group',
+        id,
+        namespace,
+        jobId,
+        label: id,
+      }));
 
     const csiPluginResults = allCSIPluginResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id }) => ({
       type: 'plugin',
@@ -157,17 +166,32 @@ export default class GlobalSearchControl extends Component {
         options: nodeResults,
       },
       {
-        groupName: resultsGroupLabel('Allocations', allocationResults, allAllocationResults, allocationsTruncated),
+        groupName: resultsGroupLabel(
+          'Allocations',
+          allocationResults,
+          allAllocationResults,
+          allocationsTruncated
+        ),
         options: allocationResults,
       },
       {
-        groupName: resultsGroupLabel('Task Groups', taskGroupResults, allTaskGroupResults, taskGroupsTruncated),
+        groupName: resultsGroupLabel(
+          'Task Groups',
+          taskGroupResults,
+          allTaskGroupResults,
+          taskGroupsTruncated
+        ),
         options: taskGroupResults,
       },
       {
-        groupName: resultsGroupLabel('CSI Plugins', csiPluginResults, allCSIPluginResults, csiPluginsTruncated),
+        groupName: resultsGroupLabel(
+          'CSI Plugins',
+          csiPluginResults,
+          allCSIPluginResults,
+          csiPluginsTruncated
+        ),
         options: csiPluginResults,
-      }
+      },
     ];
   })
   search;
