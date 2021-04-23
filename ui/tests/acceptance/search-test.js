@@ -9,8 +9,6 @@ import { selectSearch } from 'ember-power-select/test-support';
 import sinon from 'sinon';
 import Response from 'ember-cli-mirage/response';
 
-import { COLLECTION_CACHE_DURATION } from 'nomad-ui/services/data-caches';
-
 function getRequestCount(server, url) {
   return server.pretender.handledRequests.filterBy('url', url).length;
 }
@@ -47,7 +45,11 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, 'q');
 
     assert.ok(Layout.navbar.search.noOptionsShown);
-    assert.equal(server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length, 1, 'expect the feature detection query');
+    assert.equal(
+      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length,
+      1,
+      'expect the feature detection query'
+    );
   });
 
   test('when fuzzy search is disabled on the server, the search control is hidden', async function(assert) {
@@ -131,8 +133,6 @@ module('Acceptance | search', function(hooks) {
       getRequestCount(server, '/v1/nodes'),
       'no new nodes request should happen when in the clients hierarchy'
     );
-
-    clock.tick(COLLECTION_CACHE_DURATION * 2);
 
     await selectSearch(Layout.navbar.search.scope, otherNode.id.substr(0, 3));
 
