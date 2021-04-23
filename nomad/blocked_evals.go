@@ -123,11 +123,16 @@ func (b *BlockedStats) Block(eval *structs.Evaluation) {
 
 	namespacedID := structs.NewNamespacedID(eval.JobID, eval.Namespace)
 	for _, v := range eval.FailedTGAllocs {
-		if _, ok := b.TotalBlockedResources[namespacedID]; !ok {
-			b.TotalBlockedResources[namespacedID] = &BlockedResourcesStats{}
+		resources := b.TotalBlockedResources[namespacedID]
+		if resources == nil {
+			resources = &BlockedResourcesStats{}
 		}
-		b.TotalBlockedResources[namespacedID].MemoryMB += v.ResourcesPending["memory"]
-		b.TotalBlockedResources[namespacedID].CPU += v.ResourcesPending["cpu"]
+
+		for _, r := range v.ResourcesPending.Tasks {
+			resources.MemoryMB += r.MemoryMB
+			resources.CPU += r.CPU
+		}
+		b.TotalBlockedResources[namespacedID] = resources
 	}
 }
 

@@ -9760,6 +9760,16 @@ func NewAllocStubFields() *AllocStubFields {
 	}
 }
 
+type AllocPendingResources struct {
+	Tasks map[string]Resources
+}
+
+func NewAllocPendingResources() *AllocPendingResources {
+	return &AllocPendingResources{
+		Tasks: make(map[string]Resources),
+	}
+}
+
 // AllocMetric is used to track various metrics while attempting
 // to make an allocation. These are used to debug a job, or to better
 // understand the pressure within the system.
@@ -9792,7 +9802,8 @@ type AllocMetric struct {
 	// QuotaExhausted provides the exhausted dimensions
 	QuotaExhausted []string
 
-	ResourcesPending map[string]int
+	// ResourcesPending provides the amount of resource pending per task group and task
+	ResourcesPending *AllocPendingResources
 
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
@@ -9923,6 +9934,29 @@ func (a *AllocMetric) PopulateScoreMetaData() {
 	heapItems := a.topScores.GetItemsReverse()
 	for i, item := range heapItems {
 		a.ScoreMetaData[i] = item.(*NodeScoreMeta)
+	}
+}
+
+func (a *AllocMetric) BlockResources(tg *TaskGroup) {
+	if a.DimensionExhausted == nil {
+		return
+	}
+
+	if a.ResourcesPending == nil {
+		a.ResourcesPending = NewAllocPendingResources()
+	}
+
+	for _, t := range tg.Tasks {
+		pending := a.ResourcesPending.Tasks[t.Name]
+		if a.DimensionExhausted["memory"] > 0 {
+			pending.MemoryMB += t.Resources.MemoryMB
+		}
+
+		if a.DimensionExhausted["cpu"] > 0 {
+			pending.CPU += t.Resources.CPU
+		}
+
+		a.ResourcesPending.Tasks[t.Name] = pending
 	}
 }
 

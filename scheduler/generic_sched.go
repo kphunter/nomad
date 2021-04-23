@@ -525,6 +525,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
 				metric.CoalescedFailures += 1
+				metric.BlockResources(tg)
 				continue
 			}
 
@@ -632,12 +633,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 				}
 
-				pendingResources := make(map[string]int)
-				for _, t := range tg.Tasks {
-					pendingResources["memory"] += t.Resources.MemoryMB
-					pendingResources["cpu"] += t.Resources.CPU
-				}
-				s.ctx.Metrics().ResourcesPending = pendingResources
+				s.ctx.Metrics().BlockResources(tg)
 
 				// Track the fact that we didn't find a placement
 				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
