@@ -21,7 +21,6 @@ module('Acceptance | search', function(hooks) {
 
   test('search exposes and navigates to results from the fuzzy search endpoint', async function(assert) {
     server.create('node', { name: 'xyz' });
-    const otherNode = server.create('node', { name: 'ghi' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default', groupsCount: 1 });
     server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default', groupsCount: 1 });
@@ -39,38 +38,7 @@ module('Acceptance | search', function(hooks) {
 
     Layout.navbar.search.as(search => {
       assert.equal(search.groups.length, 5);
-
-      search.groups[0].as(jobs => {
-        assert.equal(jobs.name, 'Jobs (2)');
-        assert.equal(jobs.options.length, 2);
-        assert.equal(jobs.options[0].text, 'vwxyz');
-        assert.equal(jobs.options[1].text, 'xyz job');
-      });
-
-      search.groups[1].as(clients => {
-        assert.equal(clients.name, 'Clients (1)');
-        assert.equal(clients.options.length, 1);
-        assert.equal(clients.options[0].text, 'xyz');
-      });
-
-      search.groups[2].as(groups => {
-        assert.equal(groups.name, 'Task Groups (2)');
-        assert.equal(groups.options.length, 2);
-        assert.equal(groups.options[0].text, 'vwxyz-group');
-        assert.equal(groups.options[1].text, 'xyz job-group');
-      });
     });
-
-    await Layout.navbar.search.groups[0].options[1].click();
-    assert.equal(currentURL(), '/jobs/xyz');
-
-    await selectSearch(Layout.navbar.search.scope, otherNode.name);
-    await Layout.navbar.search.groups[1].options[0].click();
-    assert.equal(currentURL(), `/clients/${otherNode.id}`);
-
-    await selectSearch(Layout.navbar.search.scope, 'xy');
-    await Layout.navbar.search.groups[2].options[0].click();
-    assert.equal(currentURL(), '/jobs/vwxyz/vwxyz-group');
   });
 
   test('search does not perform a request when only one character has been entered', async function(assert) {
