@@ -57,40 +57,6 @@ export default class GlobalSearchControl extends Component {
   }
 
   @task(function*(string) {
-    try {
-      set(this, 'searchString', string);
-
-      const jobs = yield this.dataCaches.fetch('job');
-      const nodes = yield this.dataCaches.fetch('node');
-
-      set(this, 'jobs', jobs.toArray());
-      set(this, 'nodes', nodes.toArray());
-
-      const jobResults = this.jobSearch.listSearched.slice(0, MAXIMUM_RESULTS);
-
-      const mergedNodeListSearched = this.nodeIdSearch.listSearched
-        .concat(this.nodeNameSearch.listSearched)
-        .uniq();
-      const nodeResults = mergedNodeListSearched.slice(0, MAXIMUM_RESULTS);
-
-      return [
-        {
-          groupName: resultsGroupLabel('Jobs', jobResults, this.jobSearch.listSearched),
-          options: jobResults,
-        },
-        {
-          groupName: resultsGroupLabel('Clients', nodeResults, mergedNodeListSearched),
-          options: nodeResults,
-        },
-      ];
-    } catch (e) {
-      // eslint-disable-next-line
-      console.log('exception searching', e);
-    }
-  })
-  searchOld;
-
-  @task(function*(string) {
     const searchResponse = yield this.token.authorizedRequest('/v1/search/fuzzy', {
       method: 'POST',
       body: JSON.stringify({
